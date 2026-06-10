@@ -1,0 +1,25 @@
+{
+  "name": "projeto-ori-quadtree",
+  "version": "1.0.0",
+  "description": "Visualizacao de dados estatisticos do estado de Sao Paulo usando Quadtree.",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "nodemon backend/server.js",
+    "test": "node backend/tests/quadtree.test.js && node backend/tests/quadtreeService.test.js && node backend/tests/municipioService.test.js && node backend/tests/pontoService.test.js && node backend/tests/concentracaoService.test.js"
+  },
+  "keywords": [
+    "quadtree",
+    "leaflet",
+    "express",
+    "dados-estatisticos"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "csv-parser": "^3.2.0",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

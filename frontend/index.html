@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dados Estatisticos com Quadtree</title>
+
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      crossorigin=""
+    >
+    <link rel="stylesheet" href="/css/styles.css">
+  </head>
+  <body>
+    <header class="cabecalho">
+      <div>
+        <p class="subtitulo">Projeto academico de ORI</p>
+        <h1>Dados Estatisticos com Quadtree</h1>
+      </div>
+      <span id="api-status" class="status">Verificando API...</span>
+    </header>
+
+    <main>
+      <aside class="painel">
+        <h2>Configuracao da visualizacao</h2>
+        <p>
+          Compare o particionamento da Quadtree com a agregacao estatistica por
+          municipio.
+        </p>
+
+        <form id="visualizacao-form">
+          <label for="modo-visualizacao">Modo de visualizacao</label>
+          <select id="modo-visualizacao" name="modo">
+            <option value="quadtree">Quadtree</option>
+            <option value="municipios">Municipios</option>
+            <option value="pontos">Pontos</option>
+            <option value="concentracao">Concentracao</option>
+          </select>
+
+          <label for="indicador">Indicador</label>
+          <input id="indicador" name="indicador" type="text" placeholder="Todos os indicadores">
+
+          <div id="controles-quadtree">
+            <label for="capacidade">Capacidade por quadrante</label>
+            <input id="capacidade" name="capacidade" type="number" min="1" max="10000" value="2" required>
+
+            <label for="profundidade-maxima">Profundidade maxima</label>
+            <input id="profundidade-maxima" name="profundidadeMaxima" type="number" min="0" max="20" value="3" readonly>
+            <small id="detalhe-zoom" class="ajuda-campo">
+              Ajustada automaticamente conforme o zoom do mapa.
+            </small>
+          </div>
+
+          <div id="controles-pontos" class="oculto">
+            <label for="municipio">Municipio</label>
+            <input id="municipio" name="municipio" type="text" placeholder="Todos os municipios">
+
+            <div class="campos-lado-a-lado">
+              <div>
+                <label for="valor-min">Valor minimo</label>
+                <input id="valor-min" name="valorMin" type="number" step="any">
+              </div>
+              <div>
+                <label for="valor-max">Valor maximo</label>
+                <input id="valor-max" name="valorMax" type="number" step="any">
+              </div>
+            </div>
+          </div>
+
+          <div id="controles-concentracao" class="oculto">
+            <label for="criterio-concentracao">Intensidade baseada em</label>
+            <select id="criterio-concentracao" name="criterio">
+              <option value="quantidade">Quantidade de registros</option>
+              <option value="soma">Soma dos valores</option>
+            </select>
+          </div>
+
+          <button id="recarregar" type="submit">Recarregar visualizacao</button>
+        </form>
+
+        <section class="legenda" aria-label="Legenda de valores">
+          <h3>Media dos valores</h3>
+          <div class="escala-cor"></div>
+          <div class="valores-legenda">
+            <span id="valor-minimo">-</span>
+            <span id="valor-maximo">-</span>
+          </div>
+        </section>
+
+        <section id="legenda-concentracao" class="legenda legenda-circulos oculto" aria-label="Legenda de concentracao">
+          <h3>Tamanho dos circulos</h3>
+          <div class="amostras-circulos">
+            <span class="circulo-legenda pequeno"></span>
+            <span class="circulo-legenda medio"></span>
+            <span class="circulo-legenda grande"></span>
+          </div>
+          <div class="valores-legenda">
+            <span>Menor concentracao</span>
+            <span>Maior concentracao</span>
+          </div>
+          <p id="descricao-concentracao" class="descricao-legenda"></p>
+        </section>
+
+        <section class="resumo" aria-live="polite">
+          <h3>Resumo</h3>
+          <dl>
+            <div><dt id="rotulo-total-primario">Pontos</dt><dd id="total-primario">-</dd></div>
+            <div><dt id="rotulo-total-secundario">Quadrantes</dt><dd id="total-secundario">-</dd></div>
+          </dl>
+        </section>
+
+        <p id="mensagem" class="mensagem">Carregando quadrantes...</p>
+      </aside>
+
+      <section class="mapa-container" aria-label="Mapa do estado de Sao Paulo">
+        <div id="map"></div>
+      </section>
+    </main>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      crossorigin=""
+    ></script>
+    <script src="/js/main.js"></script>
+  </body>
+</html>
