@@ -11,6 +11,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 const form = document.querySelector('#visualizacao-form');
 const uploadForm = document.querySelector('#upload-form');
 const arquivoCsv = document.querySelector('#arquivo-csv');
+const arquivoCsvNome = document.querySelector('#arquivo-csv-nome');
 const botaoEnviarCsv = document.querySelector('#enviar-csv');
 const uploadMensagem = document.querySelector('#upload-mensagem');
 const uploadDetalhes = document.querySelector('#upload-detalhes');
@@ -18,13 +19,21 @@ const uploadResumo = document.querySelector('#upload-resumo');
 const uploadColunas = document.querySelector('#upload-colunas');
 const uploadPrevia = document.querySelector('#upload-previa');
 const seletorModo = document.querySelector('#modo-visualizacao');
+const descricaoModo = document.querySelector('#descricao-modo');
 const controlesQuadtree = document.querySelector('#controles-quadtree');
 const controlesPontos = document.querySelector('#controles-pontos');
 const controlesConcentracao = document.querySelector('#controles-concentracao');
 const legendaConcentracao = document.querySelector('#legenda-concentracao');
 const botaoRecarregar = document.querySelector('#recarregar');
+const botaoLimparFiltros = document.querySelector('#limpar-filtros');
+const botaoResetarVisualizacao = document.querySelector('#resetar-visualizacao');
 const apiStatus = document.querySelector('#api-status');
 const mensagem = document.querySelector('#mensagem');
+const loadingMapa = document.querySelector('#loading-mapa');
+const cardTotalRegistros = document.querySelector('#card-total-registros');
+const cardRegistrosValidos = document.querySelector('#card-registros-validos');
+const cardMunicipios = document.querySelector('#card-municipios');
+const cardQuadrantes = document.querySelector('#card-quadrantes');
 const camadaQuadrantes = L.layerGroup().addTo(map);
 const camadaMunicipios = L.layerGroup().addTo(map);
 // Esta camada isolada pode futuramente ser trocada por L.markerClusterGroup().
@@ -33,6 +42,13 @@ const camadaConcentracao = L.layerGroup().addTo(map);
 let primeiraCarga = true;
 let temporizadorZoom = null;
 let profundidadeQuadtreeAtual = null;
+
+const descricoesModo = {
+  quadtree: 'Divide o espaco em quadrantes e mostra estatisticas agregadas por celula.',
+  municipios: 'Agrupa os registros por municipio para comparar medias e totais.',
+  pontos: 'Exibe os registros individuais com filtros por municipio, indicador e valor.',
+  concentracao: 'Destaca municipios com maior concentracao por quantidade ou soma dos valores.'
+};
 
 /**
  * Converte o zoom do Leaflet em profundidade maxima da Quadtree.
@@ -75,6 +91,11 @@ function formatarNumero(valor) {
   return Number(valor).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 }
 
+function formatarInteiro(valor) {
+  if (valor === null || valor === undefined || valor === '-') return '-';
+  return Number(valor).toLocaleString('pt-BR');
+}
+
 // Transforma um valor em uma cor entre azul claro e azul escuro.
 function obterCor(valor, minimo, maximo) {
   if (valor === null || valor === undefined) return '#d9e0e8';
@@ -85,15 +106,26 @@ function obterCor(valor, minimo, maximo) {
   return `hsl(205 85% ${88 - proporcaoLimitada * 56}%)`;
 }
 
+function criarLinhaPopup(rotulo, valor) {
+  return `
+    <div class="popup-linha">
+      <span>${rotulo}</span>
+      <strong>${valor}</strong>
+    </div>
+  `;
+}
+
 function criarPopupQuadrante(no) {
   return `
-    <strong>Quadrante da Quadtree</strong><br>
-    Profundidade: ${no.profundidade}<br>
-    Quantidade de pontos: ${no.quantidadePontos}<br>
-    Soma: ${formatarNumero(no.somaValores)}<br>
-    Media: ${formatarNumero(no.mediaValores)}<br>
-    Minimo: ${formatarNumero(no.minimoValor)}<br>
-    Maximo: ${formatarNumero(no.maximoValor)}
+    <div class="popup-dados">
+      <h3>Quadrante da Quadtree</h3>
+      ${criarLinhaPopup('Profundidade', no.profundidade)}
+      ${criarLinhaPopup('Pontos', no.quantidadePontos)}
+      ${criarLinhaPopup('Soma', formatarNumero(no.somaValores))}
+      ${criarLinhaPopup('Media', formatarNumero(no.mediaValores))}
+      ${criarLinhaPopup('Minimo', formatarNumero(no.minimoValor))}
+      ${criarLinhaPopup('Maximo', formatarNumero(no.maximoValor))}
+    </div>
   `;
 }
 
@@ -126,11 +158,19 @@ function atualizarLegenda(minimo, maximo) {
   document.querySelector('#valor-maximo').textContent = formatarNumero(maximo);
 }
 
-function atualizarResumo(rotuloPrimario, valorPrimario, rotuloSecundario, valorSecundario) {
-  document.querySelector('#rotulo-total-primario').textContent = rotuloPrimario;
-  document.querySelector('#total-primario').textContent = valorPrimario;
-  document.querySelector('#rotulo-total-secundario').textContent = rotuloSecundario;
-  document.querySelector('#total-secundario').textContent = valorSecundario;
+function atualizarCardsResumo(metricas) {
+  cardTotalRegistros.textContent = formatarInteiro(metricas.totalRegistros);
+  cardRegistrosValidos.textContent = formatarInteiro(metricas.registrosValidos);
+  cardMunicipios.textContent = formatarInteiro(metricas.municipios);
+  cardQuadrantes.textContent = formatarInteiro(metricas.quadrantes);
+}
+
+function mostrarLoading(ativo) {
+  loadingMapa.classList.toggle('oculto', !ativo);
+}
+
+function atualizarDescricaoModo() {
+  descricaoModo.textContent = descricoesModo[seletorModo.value];
 }
 
 function obterIndicador() {
@@ -142,6 +182,22 @@ function limparCamadas() {
   camadaMunicipios.clearLayers();
   camadaPontos.clearLayers();
   camadaConcentracao.clearLayers();
+}
+
+// Busca a fonte CSV atual para preencher os cards globais do dashboard.
+async function carregarResumoBase() {
+  const resposta = await fetch('/api/dados');
+  const dados = await resposta.json();
+  if (!resposta.ok) throw new Error(dados.detalhe || 'Erro ao carregar resumo dos dados.');
+
+  const municipios = new Set(dados.registros.map((registro) => registro.municipio));
+
+  return {
+    totalRegistros: dados.totalLinhas,
+    registrosValidos: dados.totalRegistros,
+    municipios: municipios.size,
+    quadrantes: '-'
+  };
 }
 
 function definirMensagemUpload(texto, erro = false) {
@@ -256,18 +312,16 @@ async function carregarQuadtree() {
   limparCamadas();
   desenharNo(dados.quadtree, dados.metadata);
   atualizarLegenda(dados.metadata.valorMinimo, dados.metadata.valorMaximo);
-  atualizarResumo(
-    'Pontos',
-    dados.metadata.totalPontos,
-    'Quadrantes',
-    dados.metadata.quantidadeTotalQuadrantes
-  );
 
   const limites = dados.quadtree.limites;
   return {
     mensagem:
       `${dados.metadata.quantidadeTotalQuadrantes} quadrantes exibidos ` +
       `na profundidade ${dados.metadata.profundidadeMaximaUsada}.`,
+    metricas: {
+      registrosValidos: dados.metadata.totalPontos,
+      quadrantes: dados.metadata.quantidadeTotalQuadrantes
+    },
     bounds: [
       [limites.minLatitude, limites.minLongitude],
       [limites.maxLatitude, limites.maxLongitude]
@@ -277,12 +331,14 @@ async function carregarQuadtree() {
 
 function criarPopupMunicipio(municipio) {
   return `
-    <strong>${municipio.municipio}</strong><br>
-    Quantidade de registros: ${municipio.quantidade}<br>
-    Soma: ${formatarNumero(municipio.soma)}<br>
-    Media: ${formatarNumero(municipio.media)}<br>
-    Minimo: ${formatarNumero(municipio.minimo)}<br>
-    Maximo: ${formatarNumero(municipio.maximo)}
+    <div class="popup-dados">
+      <h3>${municipio.municipio}</h3>
+      ${criarLinhaPopup('Registros', municipio.quantidade)}
+      ${criarLinhaPopup('Soma', formatarNumero(municipio.soma))}
+      ${criarLinhaPopup('Media', formatarNumero(municipio.media))}
+      ${criarLinhaPopup('Minimo', formatarNumero(municipio.minimo))}
+      ${criarLinhaPopup('Maximo', formatarNumero(municipio.maximo))}
+    </div>
   `;
 }
 
@@ -320,25 +376,28 @@ async function carregarMunicipios() {
   });
 
   atualizarLegenda(minimo, maximo);
-  atualizarResumo(
-    'Municipios',
-    municipios.length,
-    'Registros',
-    municipios.reduce((total, municipio) => total + municipio.quantidade, 0)
-  );
-
-  return { mensagem: `${municipios.length} municipios exibidos.`, bounds };
+  return {
+    mensagem: `${municipios.length} municipios exibidos.`,
+    metricas: {
+      registrosValidos: municipios.reduce((total, municipio) => total + municipio.quantidade, 0),
+      municipios: municipios.length,
+      quadrantes: '-'
+    },
+    bounds
+  };
 }
 
 function criarPopupPonto(ponto) {
   return `
-    <strong>${ponto.municipio}</strong><br>
-    CEP: ${ponto.cep || 'Nao informado'}<br>
-    Indicador: ${ponto.indicador}<br>
-    Valor: ${formatarNumero(ponto.valor)}<br>
-    Quantidade: ${formatarNumero(ponto.quantidade)}<br>
-    Latitude: ${formatarNumero(ponto.latitude)}<br>
-    Longitude: ${formatarNumero(ponto.longitude)}
+    <div class="popup-dados">
+      <h3>${ponto.municipio}</h3>
+      ${criarLinhaPopup('CEP', ponto.cep || 'Nao informado')}
+      ${criarLinhaPopup('Indicador', ponto.indicador)}
+      ${criarLinhaPopup('Valor', formatarNumero(ponto.valor))}
+      ${criarLinhaPopup('Quantidade', formatarNumero(ponto.quantidade))}
+      ${criarLinhaPopup('Latitude', formatarNumero(ponto.latitude))}
+      ${criarLinhaPopup('Longitude', formatarNumero(ponto.longitude))}
+    </div>
   `;
 }
 
@@ -363,8 +422,15 @@ async function carregarPontos() {
 
   if (pontos.length === 0) {
     atualizarLegenda(null, null);
-    atualizarResumo('Pontos', 0, 'Municipios', 0);
-    return { mensagem: 'Nenhum ponto encontrado para os filtros informados.', bounds: [] };
+    return {
+      mensagem: 'Nenhum ponto encontrado para os filtros informados.',
+      metricas: {
+        registrosValidos: 0,
+        municipios: 0,
+        quadrantes: '-'
+      },
+      bounds: []
+    };
   }
 
   const valores = pontos.map((ponto) => ponto.valor);
@@ -396,17 +462,26 @@ async function carregarPontos() {
   });
 
   atualizarLegenda(minimo, maximo);
-  atualizarResumo('Pontos', pontos.length, 'Municipios', municipios.size);
-  return { mensagem: `${pontos.length} pontos exibidos.`, bounds };
+  return {
+    mensagem: `${pontos.length} pontos exibidos.`,
+    metricas: {
+      registrosValidos: pontos.length,
+      municipios: municipios.size,
+      quadrantes: '-'
+    },
+    bounds
+  };
 }
 
 function criarPopupConcentracao(item) {
   return `
-    <strong>${item.municipio}</strong><br>
-    Total de registros: ${item.totalRegistros}<br>
-    Soma dos valores: ${formatarNumero(item.somaValores)}<br>
-    Media dos valores: ${formatarNumero(item.mediaValores)}<br>
-    Intensidade: ${formatarNumero(item.intensidadeConcentracao)}
+    <div class="popup-dados">
+      <h3>${item.municipio}</h3>
+      ${criarLinhaPopup('Registros', item.totalRegistros)}
+      ${criarLinhaPopup('Soma', formatarNumero(item.somaValores))}
+      ${criarLinhaPopup('Media', formatarNumero(item.mediaValores))}
+      ${criarLinhaPopup('Intensidade', formatarNumero(item.intensidadeConcentracao))}
+    </div>
   `;
 }
 
@@ -455,12 +530,6 @@ async function carregarConcentracao() {
   });
 
   atualizarLegenda(mediaMinima, mediaMaxima);
-  atualizarResumo(
-    'Municipios',
-    concentracoes.length,
-    'Registros',
-    concentracoes.reduce((total, item) => total + item.totalRegistros, 0)
-  );
 
   const descricao =
     criterio === 'soma'
@@ -468,15 +537,27 @@ async function carregarConcentracao() {
       : 'O raio representa a quantidade de registros de cada municipio.';
   document.querySelector('#descricao-concentracao').textContent = descricao;
 
-  return { mensagem: `${concentracoes.length} concentracoes exibidas.`, bounds };
+  return {
+    mensagem: `${concentracoes.length} concentracoes exibidas.`,
+    metricas: {
+      registrosValidos: concentracoes.reduce((total, item) => total + item.totalRegistros, 0),
+      municipios: concentracoes.length,
+      quadrantes: '-'
+    },
+    bounds
+  };
 }
 
 async function carregarVisualizacao() {
   botaoRecarregar.disabled = true;
+  botaoLimparFiltros.disabled = true;
+  botaoResetarVisualizacao.disabled = true;
+  mostrarLoading(true);
   mensagem.textContent = 'Carregando visualizacao...';
   mensagem.classList.remove('erro');
 
   try {
+    const resumoBase = await carregarResumoBase();
     let resultado;
     if (seletorModo.value === 'municipios') {
       resultado = await carregarMunicipios();
@@ -492,6 +573,10 @@ async function carregarVisualizacao() {
     apiStatus.classList.remove('erro');
     apiStatus.classList.add('ok');
     mensagem.textContent = resultado.mensagem;
+    atualizarCardsResumo({
+      ...resumoBase,
+      ...resultado.metricas
+    });
 
     if (primeiraCarga && resultado.bounds.length > 0) {
       map.fitBounds(resultado.bounds, { padding: [20, 20] });
@@ -506,6 +591,9 @@ async function carregarVisualizacao() {
     console.error(error);
   } finally {
     botaoRecarregar.disabled = false;
+    botaoLimparFiltros.disabled = false;
+    botaoResetarVisualizacao.disabled = false;
+    mostrarLoading(false);
   }
 }
 
@@ -517,6 +605,7 @@ seletorModo.addEventListener('change', () => {
   controlesPontos.classList.toggle('oculto', !exibirPontos);
   controlesConcentracao.classList.toggle('oculto', !exibirConcentracao);
   legendaConcentracao.classList.toggle('oculto', !exibirConcentracao);
+  atualizarDescricaoModo();
   carregarVisualizacao();
 });
 
@@ -526,6 +615,26 @@ form.addEventListener('submit', (event) => {
 });
 
 uploadForm.addEventListener('submit', enviarCsv);
+
+arquivoCsv.addEventListener('change', () => {
+  arquivoCsvNome.textContent = arquivoCsv.files[0]?.name || 'Nenhum arquivo selecionado';
+});
+
+// Limpa filtros textuais e numericos sem trocar o modo selecionado.
+botaoLimparFiltros.addEventListener('click', () => {
+  document.querySelector('#indicador').value = '';
+  document.querySelector('#municipio').value = '';
+  document.querySelector('#valor-min').value = '';
+  document.querySelector('#valor-max').value = '';
+  document.querySelector('#criterio-concentracao').value = 'quantidade';
+  carregarVisualizacao();
+});
+
+botaoResetarVisualizacao.addEventListener('click', () => {
+  primeiraCarga = true;
+  map.setView(centroSaoPaulo, 7);
+  carregarVisualizacao();
+});
 
 const atualizarQuadtreeNoZoom = debounce(() => {
   if (seletorModo.value !== 'quadtree') return;
@@ -542,4 +651,5 @@ const atualizarQuadtreeNoZoom = debounce(() => {
 map.on('zoomend', atualizarQuadtreeNoZoom);
 
 sincronizarProfundidadeComZoom();
+atualizarDescricaoModo();
 carregarVisualizacao();

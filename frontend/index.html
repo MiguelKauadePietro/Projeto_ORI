@@ -13,28 +13,37 @@
     <link rel="stylesheet" href="/css/styles.css">
   </head>
   <body>
-    <header class="cabecalho">
-      <div>
-        <p class="subtitulo">Projeto academico de ORI</p>
-        <h1>Dados Estatisticos com Quadtree</h1>
-      </div>
-      <span id="api-status" class="status">Verificando API...</span>
-    </header>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <header class="sidebar-header">
+          <p class="subtitulo">Projeto academico de ORI</p>
+          <h1>Dashboard Geografico com Quadtree</h1>
+          <p>
+            Visualize dados estatisticos georreferenciados no estado de Sao
+            Paulo com particionamento espacial e agregacoes por municipio.
+          </p>
+          <span id="api-status" class="status">Verificando API...</span>
+        </header>
 
-    <main>
-      <aside class="painel">
-        <h2>Configuracao da visualizacao</h2>
-        <p>
-          Compare o particionamento da Quadtree com a agregacao estatistica por
-          municipio.
-        </p>
-
-        <section class="upload-csv" aria-label="Upload de CSV">
-          <h3>Arquivo CSV</h3>
+        <section class="painel-controle" aria-label="Upload de CSV">
+          <div class="secao-titulo">
+            <span>01</span>
+            <h2>Arquivo CSV</h2>
+          </div>
           <form id="upload-form">
-            <label for="arquivo-csv">Selecionar CSV</label>
-            <input id="arquivo-csv" name="arquivoCsv" type="file" accept=".csv,text/csv">
-            <button id="enviar-csv" type="submit">Enviar CSV</button>
+            <label for="arquivo-csv">Selecionar arquivo</label>
+            <div class="arquivo-campo">
+              <input
+                id="arquivo-csv"
+                class="arquivo-input"
+                name="arquivoCsv"
+                type="file"
+                accept=".csv,text/csv"
+              >
+              <label class="arquivo-botao" for="arquivo-csv">Escolher CSV</label>
+              <span id="arquivo-csv-nome">Nenhum arquivo selecionado</span>
+            </div>
+            <button id="enviar-csv" class="botao botao-secundario" type="submit">Enviar CSV</button>
           </form>
           <p id="upload-mensagem" class="mensagem-upload">Nenhum CSV enviado nesta sessao.</p>
           <div id="upload-detalhes" class="upload-detalhes oculto">
@@ -49,94 +58,135 @@
           </div>
         </section>
 
-        <form id="visualizacao-form">
-          <label for="modo-visualizacao">Modo de visualizacao</label>
-          <select id="modo-visualizacao" name="modo">
-            <option value="quadtree">Quadtree</option>
-            <option value="municipios">Municipios</option>
-            <option value="pontos">Pontos</option>
-            <option value="concentracao">Concentracao</option>
-          </select>
-
-          <label for="indicador">Indicador</label>
-          <input id="indicador" name="indicador" type="text" placeholder="Todos os indicadores">
-
-          <div id="controles-quadtree">
-            <label for="capacidade">Capacidade por quadrante</label>
-            <input id="capacidade" name="capacidade" type="number" min="1" max="10000" value="2" required>
-
-            <label for="profundidade-maxima">Profundidade maxima</label>
-            <input id="profundidade-maxima" name="profundidadeMaxima" type="number" min="0" max="20" value="3" readonly>
-            <small id="detalhe-zoom" class="ajuda-campo">
-              Ajustada automaticamente conforme o zoom do mapa.
-            </small>
+        <section class="painel-controle" aria-label="Controles de visualizacao">
+          <div class="secao-titulo">
+            <span>02</span>
+            <h2>Visualizacao</h2>
           </div>
 
-          <div id="controles-pontos" class="oculto">
-            <label for="municipio">Municipio</label>
-            <input id="municipio" name="municipio" type="text" placeholder="Todos os municipios">
+          <form id="visualizacao-form">
+            <label for="modo-visualizacao">Modo</label>
+            <select id="modo-visualizacao" name="modo">
+              <option value="quadtree">Quadtree</option>
+              <option value="municipios">Municipios</option>
+              <option value="pontos">Pontos</option>
+              <option value="concentracao">Concentracao</option>
+            </select>
+            <p id="descricao-modo" class="descricao-modo"></p>
 
-            <div class="campos-lado-a-lado">
-              <div>
-                <label for="valor-min">Valor minimo</label>
-                <input id="valor-min" name="valorMin" type="number" step="any">
-              </div>
-              <div>
-                <label for="valor-max">Valor maximo</label>
-                <input id="valor-max" name="valorMax" type="number" step="any">
+            <label for="indicador">Indicador</label>
+            <input id="indicador" name="indicador" type="text" placeholder="Todos os indicadores">
+
+            <div id="controles-quadtree">
+              <label for="capacidade">Capacidade por quadrante</label>
+              <input id="capacidade" name="capacidade" type="number" min="1" max="10000" value="2" required>
+
+              <label for="profundidade-maxima">Profundidade maxima</label>
+              <input id="profundidade-maxima" name="profundidadeMaxima" type="number" min="0" max="20" value="3" readonly>
+              <small id="detalhe-zoom" class="ajuda-campo">
+                Ajustada automaticamente conforme o zoom do mapa.
+              </small>
+            </div>
+
+            <div id="controles-pontos" class="oculto">
+              <label for="municipio">Municipio</label>
+              <input id="municipio" name="municipio" type="text" placeholder="Todos os municipios">
+
+              <div class="campos-lado-a-lado">
+                <div>
+                  <label for="valor-min">Valor minimo</label>
+                  <input id="valor-min" name="valorMin" type="number" step="any">
+                </div>
+                <div>
+                  <label for="valor-max">Valor maximo</label>
+                  <input id="valor-max" name="valorMax" type="number" step="any">
+                </div>
               </div>
             </div>
-          </div>
 
-          <div id="controles-concentracao" class="oculto">
-            <label for="criterio-concentracao">Intensidade baseada em</label>
-            <select id="criterio-concentracao" name="criterio">
-              <option value="quantidade">Quantidade de registros</option>
-              <option value="soma">Soma dos valores</option>
-            </select>
-          </div>
+            <div id="controles-concentracao" class="oculto">
+              <label for="criterio-concentracao">Intensidade baseada em</label>
+              <select id="criterio-concentracao" name="criterio">
+                <option value="quantidade">Quantidade de registros</option>
+                <option value="soma">Soma dos valores</option>
+              </select>
+            </div>
 
-          <button id="recarregar" type="submit">Recarregar visualizacao</button>
-        </form>
-
-        <section class="legenda" aria-label="Legenda de valores">
-          <h3>Media dos valores</h3>
-          <div class="escala-cor"></div>
-          <div class="valores-legenda">
-            <span id="valor-minimo">-</span>
-            <span id="valor-maximo">-</span>
-          </div>
+            <div class="acoes-formulario">
+              <button id="recarregar" class="botao botao-primario" type="submit">Atualizar mapa</button>
+              <button id="limpar-filtros" class="botao botao-neutro" type="button">Limpar filtros</button>
+              <button id="resetar-visualizacao" class="botao botao-neutro" type="button">Resetar visualizacao</button>
+            </div>
+          </form>
         </section>
-
-        <section id="legenda-concentracao" class="legenda legenda-circulos oculto" aria-label="Legenda de concentracao">
-          <h3>Tamanho dos circulos</h3>
-          <div class="amostras-circulos">
-            <span class="circulo-legenda pequeno"></span>
-            <span class="circulo-legenda medio"></span>
-            <span class="circulo-legenda grande"></span>
-          </div>
-          <div class="valores-legenda">
-            <span>Menor concentracao</span>
-            <span>Maior concentracao</span>
-          </div>
-          <p id="descricao-concentracao" class="descricao-legenda"></p>
-        </section>
-
-        <section class="resumo" aria-live="polite">
-          <h3>Resumo</h3>
-          <dl>
-            <div><dt id="rotulo-total-primario">Pontos</dt><dd id="total-primario">-</dd></div>
-            <div><dt id="rotulo-total-secundario">Quadrantes</dt><dd id="total-secundario">-</dd></div>
-          </dl>
-        </section>
-
-        <p id="mensagem" class="mensagem">Carregando quadrantes...</p>
       </aside>
 
-      <section class="mapa-container" aria-label="Mapa do estado de Sao Paulo">
-        <div id="map"></div>
-      </section>
-    </main>
+      <main class="conteudo-principal">
+        <section class="topo-dashboard" aria-label="Resumo dos dados">
+          <div class="titulo-dashboard">
+            <p class="subtitulo">Painel de analise espacial</p>
+            <h2>Mapa estatistico de Sao Paulo</h2>
+          </div>
+
+          <div class="cards-resumo">
+            <article class="card-resumo">
+              <span>Total de registros</span>
+              <strong id="card-total-registros">-</strong>
+            </article>
+            <article class="card-resumo">
+              <span>Registros validos</span>
+              <strong id="card-registros-validos">-</strong>
+            </article>
+            <article class="card-resumo">
+              <span>Municipios encontrados</span>
+              <strong id="card-municipios">-</strong>
+            </article>
+            <article class="card-resumo">
+              <span>Quadrantes gerados</span>
+              <strong id="card-quadrantes">-</strong>
+            </article>
+          </div>
+        </section>
+
+        <section class="mapa-container" aria-label="Mapa do estado de Sao Paulo">
+          <div id="map"></div>
+
+          <div id="loading-mapa" class="loading-mapa oculto">
+            <div class="spinner"></div>
+            <span>Carregando dados...</span>
+          </div>
+
+          <section class="legenda legenda-flutuante" aria-label="Legenda de valores">
+            <h3>Media dos valores</h3>
+            <div class="escala-cor"></div>
+            <div class="valores-legenda">
+              <span id="valor-minimo">-</span>
+              <span id="valor-maximo">-</span>
+            </div>
+          </section>
+
+          <section
+            id="legenda-concentracao"
+            class="legenda legenda-circulos legenda-flutuante legenda-secundaria oculto"
+            aria-label="Legenda de concentracao"
+          >
+            <h3>Tamanho dos circulos</h3>
+            <div class="amostras-circulos">
+              <span class="circulo-legenda pequeno"></span>
+              <span class="circulo-legenda medio"></span>
+              <span class="circulo-legenda grande"></span>
+            </div>
+            <div class="valores-legenda">
+              <span>Menor concentracao</span>
+              <span>Maior concentracao</span>
+            </div>
+            <p id="descricao-concentracao" class="descricao-legenda"></p>
+          </section>
+
+          <p id="mensagem" class="mensagem">Carregando quadrantes...</p>
+        </section>
+      </main>
+    </div>
 
     <script
       src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
