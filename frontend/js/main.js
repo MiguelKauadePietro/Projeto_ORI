@@ -9,6 +9,14 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 const form = document.querySelector('#visualizacao-form');
+const uploadForm = document.querySelector('#upload-form');
+const arquivoCsv = document.querySelector('#arquivo-csv');
+const botaoEnviarCsv = document.querySelector('#enviar-csv');
+const uploadMensagem = document.querySelector('#upload-mensagem');
+const uploadDetalhes = document.querySelector('#upload-detalhes');
+const uploadResumo = document.querySelector('#upload-resumo');
+const uploadColunas = document.querySelector('#upload-colunas');
+const uploadPrevia = document.querySelector('#upload-previa');
 const seletorModo = document.querySelector('#modo-visualizacao');
 const controlesQuadtree = document.querySelector('#controles-quadtree');
 const controlesPontos = document.querySelector('#controles-pontos');
@@ -134,6 +142,100 @@ function limparCamadas() {
   camadaMunicipios.clearLayers();
   camadaPontos.clearLayers();
   camadaConcentracao.clearLayers();
+}
+
+function definirMensagemUpload(texto, erro = false) {
+  uploadMensagem.textContent = texto;
+  uploadMensagem.classList.toggle('erro', erro);
+}
+
+function renderizarPreviaCsv(colunas, registros) {
+  const thead = uploadPrevia.querySelector('thead');
+  const tbody = uploadPrevia.querySelector('tbody');
+  thead.textContent = '';
+  tbody.textContent = '';
+
+  if (!registros || registros.length === 0) {
+    return;
+  }
+
+  const colunasDaPrevia = colunas.filter((coluna) => coluna in registros[0]);
+  const linhaCabecalho = document.createElement('tr');
+
+  colunasDaPrevia.forEach((coluna) => {
+    const th = document.createElement('th');
+    th.textContent = coluna;
+    linhaCabecalho.appendChild(th);
+  });
+
+  thead.appendChild(linhaCabecalho);
+
+  registros.forEach((registro) => {
+    const linha = document.createElement('tr');
+
+    colunasDaPrevia.forEach((coluna) => {
+      const td = document.createElement('td');
+      td.textContent = registro[coluna] ?? '';
+      linha.appendChild(td);
+    });
+
+    tbody.appendChild(linha);
+  });
+}
+
+function atualizarDetalhesUpload(resultado) {
+  uploadDetalhes.classList.remove('oculto');
+  uploadResumo.textContent =
+    `${resultado.registrosLidos} linhas lidas, ` +
+    `${resultado.registrosValidos} registros validos e ` +
+    `${resultado.registrosInvalidos} registros ignorados.`;
+  uploadColunas.textContent = `Colunas encontradas: ${resultado.colunas.join(', ')}.`;
+  renderizarPreviaCsv(resultado.colunas, resultado.previa);
+}
+
+async function enviarCsv(event) {
+  event.preventDefault();
+
+  const arquivo = arquivoCsv.files[0];
+  if (!arquivo) {
+    definirMensagemUpload('Selecione um arquivo CSV antes de enviar.', true);
+    return;
+  }
+
+  const extensaoCsv = arquivo.name.toLowerCase().endsWith('.csv');
+  if (!extensaoCsv) {
+    definirMensagemUpload('O arquivo selecionado precisa ter extensao .csv.', true);
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('arquivoCsv', arquivo);
+
+  botaoEnviarCsv.disabled = true;
+  definirMensagemUpload('Enviando CSV...');
+
+  try {
+    const resposta = await fetch('/api/upload-csv', {
+      method: 'POST',
+      body: formData
+    });
+    const resultado = await resposta.json();
+
+    if (!resposta.ok) {
+      throw new Error(resultado.detalhe || 'Nao foi possivel enviar o CSV.');
+    }
+
+    definirMensagemUpload(resultado.mensagem);
+    atualizarDetalhesUpload(resultado);
+    primeiraCarga = true;
+    await carregarVisualizacao();
+  } catch (error) {
+    definirMensagemUpload(error.message, true);
+    uploadDetalhes.classList.add('oculto');
+    console.error(error);
+  } finally {
+    botaoEnviarCsv.disabled = false;
+  }
 }
 
 async function carregarQuadtree() {
@@ -422,6 +524,8 @@ form.addEventListener('submit', (event) => {
   event.preventDefault();
   carregarVisualizacao();
 });
+
+uploadForm.addEventListener('submit', enviarCsv);
 
 const atualizarQuadtreeNoZoom = debounce(() => {
   if (seletorModo.value !== 'quadtree') return;

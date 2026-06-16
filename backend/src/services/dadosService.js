@@ -1,11 +1,10 @@
 const path = require('path');
 const { lerCsv } = require('./csvService');
+const { obterCsvAtual } = require('./csvAtualService');
 const { gerarRepresentacaoQuadtree } = require('./quadtreeService');
 const { agruparPorMunicipio } = require('./municipioService');
 const { filtrarPontos } = require('./pontoService');
 const { calcularConcentracao } = require('./concentracaoService');
-
-const csvPath = path.resolve(__dirname, '../../../data/dados.csv');
 
 /**
  * Ponto de entrada do processamento estatistico.
@@ -13,6 +12,7 @@ const csvPath = path.resolve(__dirname, '../../../data/dados.csv');
  * HTTP diretamente ao mecanismo de leitura do CSV.
  */
 async function obterDados() {
+  const csvPath = obterCsvAtual();
   const resultado = await lerCsv(csvPath);
 
   return {
@@ -22,11 +22,13 @@ async function obterDados() {
 }
 
 async function obterQuadtree(options = {}) {
+  const csvPath = obterCsvAtual();
   const { registros } = await lerCsv(csvPath);
   return gerarRepresentacaoQuadtree(registros, options);
 }
 
 async function obterMunicipios(options = {}) {
+  const csvPath = obterCsvAtual();
   const { registros } = await lerCsv(csvPath);
   const municipios = agruparPorMunicipio(registros, options.indicador);
 
@@ -44,11 +46,13 @@ async function obterMunicipios(options = {}) {
 }
 
 async function obterPontos(filtros = {}) {
+  const csvPath = obterCsvAtual();
   const { registros } = await lerCsv(csvPath);
   return filtrarPontos(registros, filtros);
 }
 
 async function obterConcentracao(options = {}) {
+  const csvPath = obterCsvAtual();
   const { registros } = await lerCsv(csvPath);
   const concentracoes = calcularConcentracao(registros, options);
 

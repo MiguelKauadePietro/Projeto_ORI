@@ -140,6 +140,64 @@ main {
   opacity: 0.65;
 }
 
+.upload-csv {
+  margin: 18px 0 24px;
+  padding: 16px 0 20px;
+  border-top: 1px solid #e1e6ed;
+  border-bottom: 1px solid #e1e6ed;
+}
+
+.upload-csv h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.upload-csv label {
+  margin-top: 14px;
+}
+
+.mensagem-upload {
+  min-height: 1.25rem;
+  margin: 14px 0 0 !important;
+  font-size: 0.9rem;
+}
+
+.mensagem-upload.erro {
+  color: #a63d40;
+}
+
+.upload-detalhes p {
+  margin: 10px 0 0 !important;
+  font-size: 0.85rem;
+}
+
+.tabela-previa-wrapper {
+  max-width: 100%;
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+#upload-previa {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+#upload-previa th,
+#upload-previa td {
+  max-width: 120px;
+  padding: 6px;
+  border: 1px solid #d7dee8;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#upload-previa th {
+  background: #eef2f7;
+}
+
 .legenda,
 .resumo {
   margin-top: 26px;

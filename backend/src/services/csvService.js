@@ -3,6 +3,7 @@ const path = require('path');
 const csv = require('csv-parser');
 
 const DEFAULT_CSV_PATH = path.resolve(__dirname, '../../../data/dados.csv');
+const COLUNAS_OBRIGATORIAS = ['municipio', 'latitude', 'longitude', 'indicador', 'valor', 'quantidade'];
 
 /**
  * Padroniza os cabecalhos para evitar diferencas de caixa, espacos e acentos.
@@ -79,6 +80,8 @@ function registroValido(registro) {
 function lerCsv(caminhoArquivo = DEFAULT_CSV_PATH) {
   return new Promise((resolve, reject) => {
     const registros = [];
+    const previa = [];
+    let colunas = [];
     let linhasLidas = 0;
 
     const stream = fs.createReadStream(caminhoArquivo);
@@ -94,12 +97,19 @@ function lerCsv(caminhoArquivo = DEFAULT_CSV_PATH) {
           skipLines: 0
         })
       )
+      .on('headers', (headers) => {
+        colunas = headers.map(normalizarNomeCampo);
+      })
       .on('data', (linha) => {
         const registro = normalizarRegistro(linha, linhasLidas);
         linhasLidas += 1;
 
         if (registroValido(registro)) {
           registros.push(registro);
+
+          if (previa.length < 5) {
+            previa.push(registro);
+          }
         }
       })
       .on('error', (error) => {
@@ -107,18 +117,27 @@ function lerCsv(caminhoArquivo = DEFAULT_CSV_PATH) {
       })
       .on('end', () => {
         resolve({
+          colunas,
           totalLinhas: linhasLidas,
           totalRegistros: registros.length,
           linhasIgnoradas: linhasLidas - registros.length,
+          previa,
           registros
         });
       });
   });
 }
 
+function validarColunasObrigatorias(colunas) {
+  const conjunto = new Set(colunas.map(normalizarNomeCampo));
+  return COLUNAS_OBRIGATORIAS.filter((coluna) => !conjunto.has(coluna));
+}
+
 module.exports = {
+  COLUNAS_OBRIGATORIAS,
   lerCsv,
   normalizarNomeCampo,
   normalizarRegistro,
-  registroValido
+  registroValido,
+  validarColunasObrigatorias
 };

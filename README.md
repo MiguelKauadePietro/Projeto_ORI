@@ -22,9 +22,10 @@ individuais e concentracoes de registros.
 
 ## Descricao da Aplicacao
 
-A aplicacao le o arquivo `data/dados.csv`, normaliza os registros e disponibiliza
-os dados por meio de uma API REST. O frontend utiliza Leaflet.js para exibir um
-mapa interativo com zoom e pan.
+A aplicacao le o arquivo `data/dados.csv` como base inicial, permite enviar um
+novo CSV pela interface, normaliza os registros e disponibiliza os dados por
+meio de uma API REST. O frontend utiliza Leaflet.js para exibir um mapa
+interativo com zoom e pan.
 
 O usuario pode alternar entre quatro modos de visualizacao:
 
@@ -84,6 +85,7 @@ A Quadtree foi escolhida porque:
 - **JavaScript:** implementacao do backend, frontend e Quadtree.
 - **Leaflet.js:** mapa, zoom, pan, retangulos, marcadores e circulos.
 - **csv-parser:** leitura e conversao do arquivo CSV.
+- **Multer:** recebimento de arquivos CSV enviados pelo frontend.
 - **CSV:** armazenamento inicial dos dados estatisticos.
 - **OpenStreetMap:** camada cartografica de fundo.
 - **Nodemon:** reinicializacao do servidor durante o desenvolvimento.
@@ -95,6 +97,9 @@ Leaflet.js.
 ## Funcionalidades
 
 - Leitura do arquivo CSV no backend.
+- Upload de CSV pela interface web.
+- Uso automatico do CSV enviado mais recentemente.
+- Fallback para `data/dados.csv` quando nenhum upload foi feito.
 - Normalizacao de cabecalhos, CEPs e valores numericos.
 - Descarte de registros invalidos.
 - Filtro por indicador.
@@ -147,6 +152,8 @@ projeto_ORI/
 │   └── tests/
 ├── data/
 │   └── dados.csv
+├── uploads/
+│   └── .gitkeep
 ├── frontend/
 │   ├── index.html
 │   ├── css/styles.css
@@ -195,7 +202,11 @@ npm test
 
 ## Formato do CSV
 
-O arquivo deve estar em `data/dados.csv` e utilizar o seguinte cabecalho:
+O arquivo padrao fica em `data/dados.csv`. Pela interface web, tambem e
+possivel enviar um novo arquivo `.csv`; nesse caso, o backend salva o arquivo em
+`uploads/` e as visualizacoes passam a usar o CSV enviado mais recentemente.
+
+O CSV deve utilizar, no minimo, as seguintes colunas:
 
 ```csv
 municipio,cep,latitude,longitude,indicador,valor,quantidade
@@ -211,13 +222,49 @@ Campinas,13010000,-22.9056,-47.0608,Indice de desenvolvimento,79.3,85
 
 | Campo | Descricao |
 |---|---|
-| `municipio` | Nome do municipio associado ao registro. |
-| `cep` | CEP mantido como texto para preservar zeros a esquerda. |
-| `latitude` | Coordenada geografica entre -90 e 90. |
-| `longitude` | Coordenada geografica entre -180 e 180. |
-| `indicador` | Categoria ou indicador estatistico. |
-| `valor` | Valor numerico utilizado nas estatisticas. |
-| `quantidade` | Quantidade ou frequencia associada ao registro. |
+| `municipio` | Obrigatoria. Nome do municipio associado ao registro. |
+| `cep` | Opcional. CEP mantido como texto para preservar zeros a esquerda. |
+| `latitude` | Obrigatoria. Coordenada geografica entre -90 e 90. |
+| `longitude` | Obrigatoria. Coordenada geografica entre -180 e 180. |
+| `indicador` | Obrigatoria. Categoria ou indicador estatistico. |
+| `valor` | Obrigatoria. Valor numerico utilizado nas estatisticas. |
+| `quantidade` | Obrigatoria. Quantidade ou frequencia associada ao registro. |
+
+Os nomes das colunas sao normalizados pelo backend. Por isso, diferencas de
+maiusculas, minusculas, espacos e acentos sao aceitas. Por exemplo,
+`Município`, `MUNICIPIO` e `municipio` sao tratados como a mesma coluna.
+
+Linhas com coordenadas invalidas, valores numericos invalidos ou campos
+obrigatorios vazios sao ignoradas. Depois do upload, a tela informa quantas
+linhas foram lidas, quantos registros validos foram carregados, quantos foram
+ignorados, quais colunas foram encontradas e mostra uma previa dos primeiros
+registros validos.
+
+## Upload de CSV
+
+1. Execute a aplicacao com `npm run dev` ou `npm start`.
+2. Acesse `http://localhost:3000`.
+3. No painel lateral, use a area **Arquivo CSV**.
+4. Selecione um arquivo com extensao `.csv`.
+5. Clique em **Enviar CSV**.
+
+Quando o upload e concluido com sucesso, o mapa e recarregado automaticamente no
+modo de visualizacao atual. As rotas `GET /api/dados`, `GET /api/quadtree`,
+`GET /api/municipios`, `GET /api/pontos` e `GET /api/concentracao` passam a
+usar o CSV enviado mais recentemente.
+
+Se nenhum upload tiver sido feito, todas as rotas continuam usando
+`data/dados.csv`. Nao ha banco de dados nesta versao; os arquivos enviados ficam
+armazenados em `uploads/`.
+
+O upload afeta diretamente a Quadtree e as visualizacoes:
+
+- **Quadtree:** os quadrantes sao reconstruidos com os registros validos do CSV
+  atual.
+- **Municipios:** as agregacoes por municipio sao recalculadas.
+- **Pontos:** somente pontos com coordenadas validas sao exibidos.
+- **Concentracao:** as intensidades por municipio sao recalculadas pelo criterio
+  selecionado.
 
 Os cabecalhos sao normalizados para letras minusculas e sem acentos. Campos
 numericos sao convertidos para `Number`. Linhas invalidas sao ignoradas.

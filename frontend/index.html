@@ -29,6 +29,26 @@
           municipio.
         </p>
 
+        <section class="upload-csv" aria-label="Upload de CSV">
+          <h3>Arquivo CSV</h3>
+          <form id="upload-form">
+            <label for="arquivo-csv">Selecionar CSV</label>
+            <input id="arquivo-csv" name="arquivoCsv" type="file" accept=".csv,text/csv">
+            <button id="enviar-csv" type="submit">Enviar CSV</button>
+          </form>
+          <p id="upload-mensagem" class="mensagem-upload">Nenhum CSV enviado nesta sessao.</p>
+          <div id="upload-detalhes" class="upload-detalhes oculto">
+            <p id="upload-resumo"></p>
+            <p id="upload-colunas"></p>
+            <div class="tabela-previa-wrapper">
+              <table id="upload-previa">
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
         <form id="visualizacao-form">
           <label for="modo-visualizacao">Modo de visualizacao</label>
           <select id="modo-visualizacao" name="modo">

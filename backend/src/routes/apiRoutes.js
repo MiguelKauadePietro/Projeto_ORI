@@ -1,4 +1,7 @@
 const express = require('express');
+const fs = require('fs/promises');
+const path = require('path');
+const multer = require('multer');
 const {
   obterDados,
   obterQuadtree,
@@ -6,6 +9,9 @@ const {
   obterPontos,
   obterConcentracao
 } = require('../services/dadosService');
+const { lerCsv, validarColunasObrigatorias } = require('../services/csvService');
+const { definirCsvAtual } = require('../services/csvAtualService');
+const { uploadCsv } = require('../middleware/uploadCsv');
 
 const router = express.Router();
 
@@ -40,6 +46,62 @@ router.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     projeto: 'Utilizacao de Quadtree para mapeamento de dados estatisticos'
+  });
+});
+
+// Recebe um CSV pelo frontend, valida as colunas principais e ativa o arquivo
+// para que as demais rotas passem a usar essa nova fonte de dados.
+router.post('/upload-csv', (req, res, next) => {
+  uploadCsv.single('arquivoCsv')(req, res, async (error) => {
+    if (error) {
+      const uploadError = new Error(
+        error instanceof multer.MulterError
+          ? 'Nao foi possivel receber o arquivo. Verifique o tamanho do CSV.'
+          : error.message
+      );
+      uploadError.statusCode = 400;
+      next(uploadError);
+      return;
+    }
+
+    if (!req.file) {
+      const semArquivoError = new Error('Selecione um arquivo CSV antes de enviar.');
+      semArquivoError.statusCode = 400;
+      next(semArquivoError);
+      return;
+    }
+
+    try {
+      const resultado = await lerCsv(req.file.path);
+      const colunasAusentes = validarColunasObrigatorias(resultado.colunas);
+
+      if (colunasAusentes.length > 0) {
+        await fs.unlink(req.file.path);
+        const colunasError = new Error(
+          `CSV invalido. Colunas obrigatorias ausentes: ${colunasAusentes.join(', ')}.`
+        );
+        colunasError.statusCode = 400;
+        throw colunasError;
+      }
+
+      definirCsvAtual(req.file.path);
+
+      res.json({
+        mensagem: 'CSV enviado e carregado com sucesso.',
+        arquivo: path.basename(req.file.path),
+        totalLinhas: resultado.totalLinhas,
+        registrosLidos: resultado.totalLinhas,
+        registrosValidos: resultado.totalRegistros,
+        registrosInvalidos: resultado.linhasIgnoradas,
+        colunas: resultado.colunas,
+        previa: resultado.previa
+      });
+    } catch (uploadError) {
+      if (req.file?.path) {
+        await fs.unlink(req.file.path).catch(() => {});
+      }
+      next(uploadError);
+    }
   });
 });
 
